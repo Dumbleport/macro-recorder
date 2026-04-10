@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent" android:layout_height="match_parent"
+    android:orientation="vertical" android:padding="24dp"
+    android:gravity="center_horizontal" android:background="#1A1A2E">
+    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+        android:text="Macro Recorder" android:textSize="26sp" android:textColor="#E94560"
+        android:textStyle="bold" android:layout_marginTop="32dp" android:layout_marginBottom="8dp"/>
+    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+        android:text="Touches aufnehmen und in einer Schleife abspielen"
+        android:textSize="13sp" android:textColor="#AAAAAA" android:gravity="center"
+        android:layout_marginBottom="32dp"/>
+    <TextView android:id="@+id/tv_status" android:layout_width="match_parent"
+        android:layout_height="wrap_content" android:padding="20dp" android:textSize="15sp"
+        android:textColor="#CCCCCC" android:lineSpacingExtra="6dp"
+        android:background="#0F3460" android:layout_marginBottom="24dp"/>
+    <Button android:id="@+id/btn_overlay_permission" android:layout_width="match_parent"
+        android:layout_height="wrap_content" android:text="1. Overlay-Berechtigung erteilen"
+        android:textColor="#FFFFFF" android:backgroundTint="#0F3460" android:layout_marginBottom="12dp"/>
+    <Button android:id="@+id/btn_accessibility" android:layout_width="match_parent"
+        android:layout_height="wrap_content" android:text="2. Barrierefreiheit aktivieren"
+        android:textColor="#FFFFFF" android:backgroundTint="#0F3460" android:layout_marginBottom="24dp"/>
+    <Button android:id="@+id/btn_start_overlay" android:layout_width="match_parent"
+        android:layout_height="wrap_content" android:text="Overlay starten"
+        android:textColor="#FFFFFF" android:backgroundTint="#E94560" android:enabled="false"/>
+</LinearLayout>
