@@ -13,7 +13,7 @@ class OverlayService : Service() {
 
     companion object {
         const val CHANNEL_ID = "macro_ch"
-        const val NOTIF_ID = 1001
+        const val NOTIF_ID   = 1001
         const val ACTION_STOP = "com.jakobdrei.macrorecorder.STOP_SERVICE"
     }
 
@@ -73,7 +73,9 @@ class OverlayService : Service() {
         var ix = 0; var iy = 0; var tx = 0f; var ty = 0f
         root.setOnTouchListener { _, e ->
             when (e.action) {
-                MotionEvent.ACTION_DOWN -> { ix = params.x; iy = params.y; tx = e.rawX; ty = e.rawY; true }
+                MotionEvent.ACTION_DOWN -> {
+                    ix = params.x; iy = params.y; tx = e.rawX; ty = e.rawY; true
+                }
                 MotionEvent.ACTION_MOVE -> {
                     params.x = ix + (e.rawX - tx).toInt()
                     params.y = iy + (e.rawY - ty).toInt()
@@ -85,10 +87,16 @@ class OverlayService : Service() {
     }
 
     private fun setupButtons() {
-        btnRecord.setOnClickListener { if (!MacroManager.isRecording) MacroManager.startRecording(this) }
+        root.findViewById<Button>(R.id.btn_close).setOnClickListener { stopSelf() }
+
+        btnRecord.setOnClickListener {
+            if (!MacroManager.isRecording) MacroManager.startRecording(this)
+        }
         btnStop.setOnClickListener {
-            if (MacroManager.isRecording) MacroManager.stopRecording(this)
-            else if (MacroManager.isPlaying) MacroManager.stopPlayback(this)
+            when {
+                MacroManager.isRecording -> MacroManager.stopRecording(this)
+                MacroManager.isPlaying   -> MacroManager.stopPlayback(this)
+            }
         }
         btnPlay.setOnClickListener {
             if (!MacroManager.isPlaying && !MacroManager.isRecording && MacroManager.hasRecording())
@@ -108,35 +116,65 @@ class OverlayService : Service() {
             MacroManager.isRecording -> {
                 tvStatus.text = "● Aufnahme läuft…"
                 tvStatus.setTextColor(Color.RED)
-                btnRecord.isEnabled = false; btnPlay.isEnabled = false; btnStop.isEnabled = true
+                btnRecord.isEnabled = false
+                btnPlay.isEnabled   = false
+                btnStop.isEnabled   = true
+                setOverlayTouchable(true)
             }
             MacroManager.isPlaying -> {
                 tvStatus.text = "▶ Wiedergabe…"
                 tvStatus.setTextColor(Color.GREEN)
-                btnRecord.isEnabled = false; btnPlay.isEnabled = false; btnStop.isEnabled = true
+                btnRecord.isEnabled = false
+                btnPlay.isEnabled   = false
+                btnStop.isEnabled   = true
+                setOverlayTouchable(false)
             }
             MacroManager.hasRecording() -> {
-                tvStatus.text = "${MacroManager.recordedActions.size} Aktionen aufgezeichnet"
+                val n = MacroManager.recordedActions.size
+                tvStatus.text = "$n Aktionen aufgezeichnet"
                 tvStatus.setTextColor(Color.WHITE)
-                btnRecord.isEnabled = true; btnPlay.isEnabled = true; btnStop.isEnabled = false
+                btnRecord.isEnabled = true
+                btnPlay.isEnabled   = true
+                btnStop.isEnabled   = false
+                setOverlayTouchable(true)
             }
             else -> {
                 tvStatus.text = "Bereit – tippe Aufnehmen"
                 tvStatus.setTextColor(Color.LTGRAY)
-                btnRecord.isEnabled = true; btnPlay.isEnabled = false; btnStop.isEnabled = false
+                btnRecord.isEnabled = true
+                btnPlay.isEnabled   = false
+                btnStop.isEnabled   = false
+                setOverlayTouchable(true)
             }
         }
     }
 
+    private fun setOverlayTouchable(touchable: Boolean) {
+        if (!::params.isInitialized) return
+        params.flags = if (touchable) {
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
+        } else {
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+            WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
+        }
+        try { wm.updateViewLayout(root, params) } catch (_: Exception) {}
+    }
+
     private fun startFg() {
         val mgr = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
-        mgr.createNotificationChannel(NotificationChannel(CHANNEL_ID, "Macro Recorder", NotificationManager.IMPORTANCE_LOW))
-        val stop = PendingIntent.getService(this, 0,
+        mgr.createNotificationChannel(
+            NotificationChannel(CHANNEL_ID, "Macro Recorder", NotificationManager.IMPORTANCE_LOW)
+        )
+        val stopIntent = PendingIntent.getService(
+            this, 0,
             Intent(this, OverlayService::class.java).apply { action = ACTION_STOP },
-            PendingIntent.FLAG_IMMUTABLE)
+            PendingIntent.FLAG_IMMUTABLE
+        )
         startForeground(NOTIF_ID, NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle("Macro Recorder aktiv")
             .setSmallIcon(android.R.drawable.ic_menu_camera)
-            .addAction(0, "Beenden", stop).build())
+            .addAction(0, "Beenden", stopIntent)
+            .build()
+        )
     }
 }
