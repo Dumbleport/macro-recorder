@@ -2,10 +2,6 @@ package com.jakobdrei.macrorecorder
 
 import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.GestureDescription
-import android.content.BroadcastReceiver
-import android.content.Context
-import android.content.Intent
-import android.content.IntentFilter
 import android.graphics.Path
 import android.graphics.Rect
 import android.os.Bundle
@@ -17,35 +13,18 @@ import android.view.accessibility.AccessibilityNodeInfo
 class MacroAccessibilityService : AccessibilityService() {
 
     companion object {
-        const val ACTION_START_PLAYBACK = "com.jakobdrei.macrorecorder.START_PLAYBACK"
-        const val ACTION_STOP_PLAYBACK  = "com.jakobdrei.macrorecorder.STOP_PLAYBACK"
         var instance: MacroAccessibilityService? = null
     }
 
     private val handler = Handler(Looper.getMainLooper())
     private var stopRequested = false
 
-    private val receiver = object : BroadcastReceiver() {
-        override fun onReceive(ctx: Context?, intent: Intent?) {
-            when (intent?.action) {
-                ACTION_START_PLAYBACK -> startPlayback()
-                ACTION_STOP_PLAYBACK  -> stopPlayback()
-            }
-        }
-    }
-
     override fun onServiceConnected() {
         instance = this
-        val f = IntentFilter().apply {
-            addAction(ACTION_START_PLAYBACK)
-            addAction(ACTION_STOP_PLAYBACK)
-        }
-        registerReceiver(receiver, f, RECEIVER_NOT_EXPORTED)
     }
 
     override fun onDestroy() {
         instance = null
-        unregisterReceiver(receiver)
         stopPlayback()
     }
 
@@ -53,6 +32,9 @@ class MacroAccessibilityService : AccessibilityService() {
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         if (!MacroManager.isRecording || event == null) return
+        // Ignore events from our own overlay so buttons don't get recorded
+        if (event.packageName == packageName) return
+
         when (event.eventType) {
             AccessibilityEvent.TYPE_VIEW_CLICKED -> {
                 val node = event.source ?: return
@@ -83,18 +65,24 @@ class MacroAccessibilityService : AccessibilityService() {
         }
     }
 
-    private fun startPlayback() {
+    fun startPlayback() {
         stopRequested = false
-        val actions = MacroManager.recordedActions
+        val actions = MacroManager.recordedActions.toList()
         if (actions.isEmpty()) { MacroManager.onPlaybackFinished(this); return }
+
         for (action in actions) {
-            handler.postDelayed({ if (!stopRequested) executeAction(action) }, action.relativeMs)
+            handler.postDelayed({
+                if (!stopRequested) executeAction(action)
+            }, action.relativeMs)
         }
-        val last = actions.last().relativeMs + actions.last().duration + 200L
-        handler.postDelayed({ if (!stopRequested) MacroManager.onPlaybackFinished(this) }, last)
+
+        val last = actions.last().relativeMs + actions.last().duration + 300L
+        handler.postDelayed({
+            if (!stopRequested) MacroManager.onPlaybackFinished(this)
+        }, last)
     }
 
-    private fun stopPlayback() {
+    fun stopPlayback() {
         stopRequested = true
         handler.removeCallbacksAndMessages(null)
     }
@@ -108,16 +96,20 @@ class MacroAccessibilityService : AccessibilityService() {
 
     private fun dispatchTap(x: Float, y: Float, dur: Long) {
         val p = Path().apply { moveTo(x, y) }
-        dispatchGesture(GestureDescription.Builder()
-            .addStroke(GestureDescription.StrokeDescription(p, 0, dur.coerceAtLeast(1)))
-            .build(), null, null)
+        dispatchGesture(
+            GestureDescription.Builder()
+                .addStroke(GestureDescription.StrokeDescription(p, 0, dur.coerceIn(1, 9999)))
+                .build(), null, null
+        )
     }
 
     private fun dispatchSwipe(x1: Float, y1: Float, x2: Float, y2: Float, dur: Long) {
         val p = Path().apply { moveTo(x1, y1); lineTo(x2, y2) }
-        dispatchGesture(GestureDescription.Builder()
-            .addStroke(GestureDescription.StrokeDescription(p, 0, dur.coerceAtLeast(1)))
-            .build(), null, null)
+        dispatchGesture(
+            GestureDescription.Builder()
+                .addStroke(GestureDescription.StrokeDescription(p, 0, dur.coerceIn(1, 9999)))
+                .build(), null, null
+        )
     }
 
     private fun injectText(text: String) {
